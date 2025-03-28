@@ -5,22 +5,29 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState, useEffect, useMemo } from "react";
+import { auth } from "@/lib/firebase";
+import { onAuthStateChanged } from "firebase/auth";
 import {
-  FiLogOut,
-  FiSettings,
-  FiUser,
-  FiBarChart2,
-  FiHome,
-  FiMenu,
-  FiMap,
-  FiTruck,
-  FiActivity,
-  FiAlertTriangle,
-  FiDroplet,
-  FiBattery
-} from "react-icons/fi";
+  Car,
+  LayoutDashboard,
+  Activity,
+  User,
+  BarChart2,
+  LogOut,
+  Settings,
+  ChevronRight,
+  ChevronLeft,
+  AlertTriangle,
+  Droplet,
+  Battery,
+  Map,
+  Menu,
+  Bell
+} from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Badge } from "@/components/ui/badge";
 import MapComponent from "@/app/components/MapComponent";
-import {AiFillCar} from "react-icons/ai";
 
 export default function Dashboard() {
   const router = useRouter();
@@ -30,6 +37,9 @@ export default function Dashboard() {
   const [idleVehicles, setIdleVehicles] = useState(4);
   const [maintenanceVehicles, setMaintenanceVehicles] = useState(2);
   const [selectedMapTab, setSelectedMapTab] = useState('all');
+  const [userEmail, setUserEmail] = useState("");
+  const [userName, setUserName] = useState("");
+  const [notifications, setNotifications] = useState(3);
 
   // Mock data for fleet health and performance
   const fleetHealthData = {
@@ -74,12 +84,39 @@ export default function Dashboard() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  const handleLogout = () => {
-    router.push("/");
+  // Get user email from Firebase Auth
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setUserEmail(user.email || "");
+        // Extract name from email for avatar
+        const namePart = user.email?.split('@')[0] || "";
+        setUserName(namePart.charAt(0).toUpperCase() + namePart.slice(1));
+      } else {
+        router.push("/auth/login");
+      }
+    });
+
+    return () => unsubscribe();
+  }, [router]);
+
+  const handleLogout = async () => {
+    try {
+      await auth.signOut();
+      router.push("/");
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
+
+  // Get user initials for avatar
+  const getInitials = () => {
+    if (!userName) return "U";
+    return userName.charAt(0).toUpperCase();
   };
 
   return (
-      <div className="flex min-h-screen bg-gray-100 text-gray-900">
+      <div className="flex min-h-screen bg-gray-50 text-gray-900">
         {/* Sidebar */}
         <motion.aside
             initial={{ x: -100, opacity: 0 }}
@@ -87,50 +124,127 @@ export default function Dashboard() {
             transition={{ duration: 0.5, ease: "easeInOut" }}
             className={`${
                 sidebarOpen ? "w-64" : "w-20"
-            } fixed md:relative inset-y-0 left-0 bg-[#1E1E1E] text-white p-5 flex flex-col transition-all duration-300 md:block ${
+            } fixed md:relative inset-y-0 left-0 bg-gradient-to-b from-blue-800 to-blue-900 text-white flex flex-col transition-all duration-300 md:block ${
                 isMobile && !sidebarOpen ? "-translate-x-full" : "translate-x-0"
-            } z-50`}
+            } z-50 shadow-xl`}
         >
-          <div className="flex items-center justify-between">
-            <motion.h1
+          <div className="flex items-center justify-between p-4 border-b border-blue-700">
+            <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.5, delay: 0.3 }}
-                className={`text-xl font-semibold tracking-wide transition-all ${
-                    sidebarOpen ? "block" : "hidden"
+                className={`flex items-center transition-all ${
+                    sidebarOpen ? "justify-between w-full" : "justify-center"
                 }`}
             >
-              AUTOWISE
-            </motion.h1>
-            <motion.button
-                whileHover={{ scale: 1.1 }}
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="text-white"
-            >
-              <FiMenu size={24} />
-            </motion.button>
+              {sidebarOpen ? (
+                  <>
+                    <div className="flex items-center">
+                      <Car className="h-6 w-6 text-blue-200" />
+                      <h1 className="ml-2 text-xl font-bold text-white">EIVMS</h1>
+                    </div>
+                    <button
+                        onClick={() => setSidebarOpen(!sidebarOpen)}
+                        className="text-blue-200 hover:text-white transition-colors"
+                    >
+                      <ChevronLeft size={20} />
+                    </button>
+                  </>
+              ) : (
+                  <>
+                    <Car className="h-6 w-6 text-blue-200" />
+                    <button
+                        onClick={() => setSidebarOpen(!sidebarOpen)}
+                        className="absolute right-0 mr-4 text-blue-200 hover:text-white transition-colors"
+                    >
+                      <ChevronRight size={20} />
+                    </button>
+                  </>
+              )}
+            </motion.div>
           </div>
 
-          <nav className="mt-8 space-y-4">
-            <SidebarLink icon={<FiHome />} label="Home" sidebarOpen={sidebarOpen} />
-            <SidebarLink icon={<FiBarChart2 />} label="Analytics" sidebarOpen={sidebarOpen} />
-            <SidebarLink icon={<FiMap />} label="Live Tracking" sidebarOpen={sidebarOpen} />
-            <SidebarLink icon={<FiTruck />} label="Fleet Health" sidebarOpen={sidebarOpen} />
-            <SidebarLink icon={<FiActivity />} label="Performance" sidebarOpen={sidebarOpen} />
-            <SidebarLink icon={<FiUser />} label="Profile" sidebarOpen={sidebarOpen} />
-            <SidebarLink icon={<FiSettings />} label="Settings" sidebarOpen={sidebarOpen} />
-            <SidebarLink icon={<AiFillCar />} label="Vehicles" sidebarOpen={sidebarOpen} />
+          {/* User Profile Info */}
+          <div className={`border-b border-blue-700 p-4 ${sidebarOpen ? "text-left" : "text-center"}`}>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                  <div className={`${sidebarOpen ? "flex items-center" : "flex flex-col items-center"}`}>
+                    <Avatar className="h-10 w-10 bg-blue-600 text-white">
+                      <AvatarFallback>{getInitials()}</AvatarFallback>
+                    </Avatar>
+                    {sidebarOpen && (
+                        <div className="ml-3 overflow-hidden">
+                          <p className="font-medium truncate">{userName || "User"}</p>
+                          <p className="text-xs text-blue-200 truncate">{userEmail}</p>
+                        </div>
+                    )}
+                  </div>
+                </TooltipTrigger>
+                {!sidebarOpen && (
+                    <TooltipContent side="right">
+                      <p className="font-medium">{userName || "User"}</p>
+                      <p className="text-xs">{userEmail}</p>
+                    </TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
+          </div>
 
+          {/* Navigation Menu */}
+          <nav className="flex-1 overflow-y-auto p-2 space-y-1">
+            <TooltipProvider>
+              <SidebarLink
+                  icon={<LayoutDashboard size={20} />}
+                  label="Dashboard"
+                  isActive={true}
+                  sidebarOpen={sidebarOpen}
+              />
+              <SidebarLink
+                  icon={<Activity size={20} />}
+                  label="Fleet Health"
+                  sidebarOpen={sidebarOpen}
+              />
+              <SidebarLink
+                  icon={<Car size={20} />}
+                  label="Vehicles"
+                  sidebarOpen={sidebarOpen}
+              />
+              <SidebarLink
+                  icon={<Map size={20} />}
+                  label="Live Tracking"
+                  sidebarOpen={sidebarOpen}
+              />
+              <SidebarLink
+                  icon={<BarChart2 size={20} />}
+                  label="Analytics"
+                  sidebarOpen={sidebarOpen}
+              />
+              <SidebarLink
+                  icon={<User size={20} />}
+                  label="Profile"
+                  sidebarOpen={sidebarOpen}
+              />
+              <SidebarLink
+                  icon={<Settings size={20} />}
+                  label="Settings"
+                  sidebarOpen={sidebarOpen}
+              />
+            </TooltipProvider>
           </nav>
 
-          <motion.div whileHover={{ scale: 1.05 }} className="mt-auto">
+          <div className="p-4 border-t border-blue-700">
             <Button
                 onClick={handleLogout}
-                className="flex items-center gap-2 w-full text-white bg-red-600 hover:bg-red-700"
+                variant="ghost"
+                className={`${
+                    sidebarOpen ? "w-full justify-start" : "w-full justify-center"
+                } text-red-100 hover:text-white hover:bg-red-700 transition-colors`}
             >
-              <FiLogOut /> {sidebarOpen && "Logout"}
+              <LogOut size={20} className="mr-2" />
+              {sidebarOpen && "Logout"}
             </Button>
-          </motion.div>
+          </div>
         </motion.aside>
 
         {/* Main Content */}
@@ -138,183 +252,225 @@ export default function Dashboard() {
             sidebarOpen ? "md:ml-64" : "md:ml-20"
         } ${isMobile ? "ml-0" : ""}`}>
           {/* Top Bar */}
-          <header className="p-5 bg-white shadow flex justify-between items-center">
-            <h2 className="text-2xl font-semibold text-gray-800">Fleet Dashboard</h2>
+          <header className="sticky top-0 z-40 bg-white border-b px-6 py-3 flex justify-between items-center">
+            <div className="flex items-center">
+              {isMobile && (
+                  <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)} className="mr-4">
+                    <Menu size={20} />
+                  </Button>
+              )}
+              <h2 className="text-xl font-semibold text-blue-900">Fleet Dashboard</h2>
+            </div>
             <div className="flex items-center space-x-4">
-              <Button className="bg-black text-white">Upgrade Plan</Button>
-              <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
-                <FiUser className="text-gray-600 text-xl" />
-              </div>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="relative">
+                      <Bell size={20} />
+                      {notifications > 0 && (
+                          <Badge variant="destructive" className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center p-0 text-xs">
+                            {notifications}
+                          </Badge>
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{notifications} unread notifications</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <Button className="bg-blue-600 hover:bg-blue-700 text-white">Upgrade to Pro</Button>
             </div>
           </header>
 
-          {/* Summary Cards */}
-          <div className="p-6">
-            <h3 className="text-xl font-semibold mb-4">Fleet Overview</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <FleetStatusCard
-                  title="Active Vehicles"
-                  count={activeVehicles}
-                  icon={<FiTruck className="text-green-500 text-4xl" />}
-                  color="green"
-              />
-              <FleetStatusCard
-                  title="Idle Vehicles"
-                  count={idleVehicles}
-                  icon={<FiTruck className="text-yellow-500 text-4xl" />}
-                  color="yellow"
-              />
-              <FleetStatusCard
-                  title="In Maintenance"
-                  count={maintenanceVehicles}
-                  icon={<FiTruck className="text-red-500 text-4xl" />}
-                  color="red"
-              />
+          {/* Page Content */}
+          <div className="flex-1 overflow-y-auto">
+            {/* Date and Welcome */}
+            <div className="bg-gradient-to-r from-blue-800 to-blue-700 text-white p-6">
+              <p className="text-blue-200">{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+              <h1 className="text-2xl font-bold mt-1">Welcome back, {userName}</h1>
+              <p className="text-blue-100 mt-1">Here's what's happening with your fleet today</p>
             </div>
-          </div>
 
-          {/* Live Vehicle Tracking */}
-          <div className="px-6 pb-6">
-            <div className="bg-white rounded-lg shadow-md p-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-semibold">Real-Time Vehicle Tracking</h3>
-                <div className="flex space-x-2">
-                  <Button
-                      variant={selectedMapTab === 'all' ? "default" : "outline"}
-                      onClick={() => setSelectedMapTab('all')}
-                      className="text-sm"
-                  >
-                    All
-                  </Button>
-                  <Button
-                      variant={selectedMapTab === 'active' ? "default" : "outline"}
-                      onClick={() => setSelectedMapTab('active')}
-                      className="text-sm"
-                  >
-                    Active
-                  </Button>
-                  <Button
-                      variant={selectedMapTab === 'idle' ? "default" : "outline"}
-                      onClick={() => setSelectedMapTab('idle')}
-                      className="text-sm"
-                  >
-                    Idle
-                  </Button>
-                  <Button
-                      variant={selectedMapTab === 'maintenance' ? "default" : "outline"}
-                      onClick={() => setSelectedMapTab('maintenance')}
-                      className="text-sm"
-                  >
-                    Maintenance
-                  </Button>
-                </div>
-              </div>
-              {/* Map Component - Integrated */}
-              <div className="relative w-full h-96 bg-gray-200 rounded-lg overflow-hidden mb-2">
-                <MapComponent vehicleLocations={filteredVehicles} />
-              </div>
-              <div className="flex items-center justify-center space-x-6">
-                <div className="flex items-center">
-                  <div className="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
-                  <span className="text-sm">Active</span>
-                </div>
-                <div className="flex items-center">
-                  <div className="w-3 h-3 rounded-full bg-yellow-500 mr-2"></div>
-                  <span className="text-sm">Idle</span>
-                </div>
-                <div className="flex items-center">
-                  <div className="w-3 h-3 rounded-full bg-red-500 mr-2"></div>
-                  <span className="text-sm">Maintenance</span>
-                </div>
+            {/* Summary Cards */}
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <FleetStatusCard
+                    title="Active Vehicles"
+                    count={activeVehicles}
+                    icon={<Car className="text-green-500" size={28} />}
+                    color="green"
+                />
+                <FleetStatusCard
+                    title="Idle Vehicles"
+                    count={idleVehicles}
+                    icon={<Car className="text-yellow-500" size={28} />}
+                    color="yellow"
+                />
+                <FleetStatusCard
+                    title="In Maintenance"
+                    count={maintenanceVehicles}
+                    icon={<Car className="text-red-500" size={28} />}
+                    color="red"
+                />
               </div>
             </div>
-          </div>
 
-          {/* Fleet Health and Performance */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 px-6 pb-6">
-            {/* Fleet Health Section */}
-            <div className="bg-white rounded-lg shadow-md p-4">
-              <h3 className="text-xl font-semibold mb-4">Fleet Health</h3>
-              <div className="space-y-4">
-                <HealthIndicator
-                    icon={<FiBattery />}
-                    label="Battery Health"
-                    value={fleetHealthData.batteryHealth}
-                    color={fleetHealthData.batteryHealth > 90 ? "green" : fleetHealthData.batteryHealth > 70 ? "yellow" : "red"}
-                />
-                <HealthIndicator
-                    icon={<FiActivity />}
-                    label="Engine Health"
-                    value={fleetHealthData.engineHealth}
-                    color={fleetHealthData.engineHealth > 90 ? "green" : fleetHealthData.engineHealth > 70 ? "yellow" : "red"}
-                />
-                <HealthIndicator
-                    icon={<FiDroplet />}
-                    label="Tire Pressure"
-                    value={fleetHealthData.tirePressure}
-                    color={fleetHealthData.tirePressure > 90 ? "green" : fleetHealthData.tirePressure > 70 ? "yellow" : "red"}
-                />
-
-                <div className="pt-4 border-t">
-                  <h4 className="font-medium mb-2 flex items-center">
-                    <FiAlertTriangle className="text-red-500 mr-2" />
-                    Maintenance Alerts
-                  </h4>
-                  <div className="bg-red-50 p-3 rounded-md">
-                    <p className="text-red-700 font-medium">3 vehicles require attention</p>
-                    <ul className="list-disc pl-5 mt-1 text-sm text-red-600">
-                      <li>Vehicle #A103 - Oil change overdue</li>
-                      <li>Vehicle #B208 - Brake inspection needed</li>
-                      <li>Vehicle #C315 - Battery replacement recommended</li>
-                    </ul>
+            {/* Live Vehicle Tracking */}
+            <div className="px-6 pb-6">
+              <Card className="overflow-hidden shadow-md">
+                <CardHeader className="bg-white py-4 px-6 flex flex-row items-center justify-between">
+                  <CardTitle className="text-lg font-semibold text-blue-900">Real-Time Fleet Tracking</CardTitle>
+                  <div className="flex space-x-2">
+                    <Button
+                        variant={selectedMapTab === 'all' ? "default" : "outline"}
+                        onClick={() => setSelectedMapTab('all')}
+                        className="text-sm h-8"
+                    >
+                      All
+                    </Button>
+                    <Button
+                        variant={selectedMapTab === 'active' ? "default" : "outline"}
+                        onClick={() => setSelectedMapTab('active')}
+                        className="text-sm h-8"
+                    >
+                      Active
+                    </Button>
+                    <Button
+                        variant={selectedMapTab === 'idle' ? "default" : "outline"}
+                        onClick={() => setSelectedMapTab('idle')}
+                        className="text-sm h-8"
+                    >
+                      Idle
+                    </Button>
+                    <Button
+                        variant={selectedMapTab === 'maintenance' ? "default" : "outline"}
+                        onClick={() => setSelectedMapTab('maintenance')}
+                        className="text-sm h-8"
+                    >
+                      Maintenance
+                    </Button>
                   </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Performance Insights */}
-            <div className="bg-white rounded-lg shadow-md p-4">
-              <h3 className="text-xl font-semibold mb-4">Performance Insights</h3>
-              <div className="space-y-6">
-                <div>
-                  <h4 className="font-medium mb-2">Fuel Efficiency (MPG)</h4>
-                  <div className="h-8 bg-gray-200 rounded-full overflow-hidden">
-                    <div className="h-full bg-blue-500 rounded-full" style={{ width: `${(performanceData.fuelEfficiency / 40) * 100}%` }}>
-                      <span className="px-2 text-white">{performanceData.fuelEfficiency} MPG</span>
+                </CardHeader>
+                <CardContent className="p-0">
+                  {/* Map Component */}
+                  <div className="relative w-full h-96 bg-gray-200">
+                    <MapComponent vehicleLocations={filteredVehicles} />
+                  </div>
+                  <div className="flex items-center justify-center space-x-6 p-3 bg-white border-t">
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
+                      <span className="text-sm">Active</span>
+                    </div>
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 rounded-full bg-yellow-500 mr-2"></div>
+                      <span className="text-sm">Idle</span>
+                    </div>
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 rounded-full bg-red-500 mr-2"></div>
+                      <span className="text-sm">Maintenance</span>
                     </div>
                   </div>
-                </div>
+                </CardContent>
+              </Card>
+            </div>
 
-                <div>
-                  <h4 className="font-medium mb-2">Safety Incidents (Last 30 days)</h4>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-orange-50 p-3 rounded-md">
-                      <p className="text-orange-600">Speeding</p>
-                      <p className="text-2xl font-bold text-orange-700">{performanceData.speedingIncidents}</p>
-                    </div>
+            {/* Fleet Health and Performance */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 px-6 pb-6">
+              {/* Fleet Health Section */}
+              <Card className="shadow-md">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg font-semibold text-blue-900">Fleet Health</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <HealthIndicator
+                      icon={<Battery size={18} />}
+                      label="Battery Health"
+                      value={fleetHealthData.batteryHealth}
+                      color={fleetHealthData.batteryHealth > 90 ? "green" : fleetHealthData.batteryHealth > 70 ? "yellow" : "red"}
+                  />
+                  <HealthIndicator
+                      icon={<Activity size={18} />}
+                      label="Engine Health"
+                      value={fleetHealthData.engineHealth}
+                      color={fleetHealthData.engineHealth > 90 ? "green" : fleetHealthData.engineHealth > 70 ? "yellow" : "red"}
+                  />
+                  <HealthIndicator
+                      icon={<Droplet size={18} />}
+                      label="Tire Pressure"
+                      value={fleetHealthData.tirePressure}
+                      color={fleetHealthData.tirePressure > 90 ? "green" : fleetHealthData.tirePressure > 70 ? "yellow" : "red"}
+                  />
+
+                  <div className="pt-4 border-t">
+                    <h4 className="font-medium mb-2 flex items-center">
+                      <AlertTriangle className="text-red-500 mr-2" size={18} />
+                      Maintenance Alerts
+                    </h4>
                     <div className="bg-red-50 p-3 rounded-md">
-                      <p className="text-red-600">Harsh Braking</p>
-                      <p className="text-2xl font-bold text-red-700">{performanceData.harshBraking}</p>
+                      <p className="text-red-700 font-medium">3 vehicles require attention</p>
+                      <ul className="list-disc pl-5 mt-1 text-sm text-red-600">
+                        <li>Vehicle #A103 - Oil change overdue</li>
+                        <li>Vehicle #B208 - Brake inspection needed</li>
+                        <li>Vehicle #C315 - Battery replacement recommended</li>
+                      </ul>
                     </div>
                   </div>
-                </div>
+                </CardContent>
+              </Card>
 
-                <div>
-                  <h4 className="font-medium mb-2">Route Optimization</h4>
-                  <div className="flex items-center">
-                    <div className="h-8 w-full bg-gray-200 rounded-full overflow-hidden">
-                      <div className="h-full bg-green-500 rounded-full" style={{ width: `${performanceData.optimalRoutes}%` }}></div>
+              {/* Performance Insights */}
+              <Card className="shadow-md">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg font-semibold text-blue-900">Performance Insights</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-5">
+                  <div>
+                    <h4 className="font-medium mb-2">Fuel Efficiency (MPG)</h4>
+                    <div className="h-8 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                          className="h-full bg-blue-600 rounded-full flex items-center"
+                          style={{ width: `${(performanceData.fuelEfficiency / 40) * 100}%` }}
+                      >
+                        <span className="px-3 text-white font-medium">{performanceData.fuelEfficiency} MPG</span>
+                      </div>
                     </div>
-                    <span className="ml-2 font-medium">{performanceData.optimalRoutes}%</span>
                   </div>
-                  <p className="text-sm text-green-600 mt-1">Routes following optimal paths</p>
 
-                  <div className="mt-4 bg-blue-50 p-3 rounded-md">
-                    <p className="text-blue-700 font-medium">AI Recommendation</p>
-                    <p className="text-sm text-blue-600 mt-1">Adjusting delivery schedules to non-peak hours could save an estimated 12% in fuel costs.</p>
+                  <div>
+                    <h4 className="font-medium mb-2">Safety Incidents (Last 30 days)</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-orange-50 p-3 rounded-md border border-orange-100">
+                        <p className="text-orange-600 font-medium">Speeding</p>
+                        <p className="text-2xl font-bold text-orange-700">{performanceData.speedingIncidents}</p>
+                      </div>
+                      <div className="bg-red-50 p-3 rounded-md border border-red-100">
+                        <p className="text-red-600 font-medium">Harsh Braking</p>
+                        <p className="text-2xl font-bold text-red-700">{performanceData.harshBraking}</p>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
+
+                  <div>
+                    <h4 className="font-medium mb-2">Route Optimization</h4>
+                    <div className="flex items-center">
+                      <div className="h-8 w-full bg-gray-100 rounded-full overflow-hidden">
+                        <div
+                            className="h-full bg-green-500 rounded-full"
+                            style={{ width: `${performanceData.optimalRoutes}%` }}
+                        ></div>
+                      </div>
+                      <span className="ml-2 font-medium">{performanceData.optimalRoutes}%</span>
+                    </div>
+                    <p className="text-sm text-green-600 mt-1">Routes following optimal paths</p>
+
+                    <div className="mt-4 bg-blue-50 p-4 rounded-md border border-blue-100">
+                      <p className="text-blue-800 font-medium">AI Recommendation</p>
+                      <p className="text-sm text-blue-700 mt-1">Adjusting delivery schedules to non-peak hours could save an estimated 12% in fuel costs.</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </div>
         </div>
@@ -323,43 +479,58 @@ export default function Dashboard() {
 }
 
 // Sidebar Link Component with Tooltip Support and Hover Effect
-const SidebarLink = ({ icon, label, sidebarOpen }) => (
-    <motion.div
-        whileHover={{ scale: 1.1, backgroundColor: "rgba(255, 255, 255, 0.1)" }}
-        className="relative group rounded-md transition-all"
-    >
-      <a href="#" className="flex items-center gap-4 p-3 rounded-md transition-all hover:bg-gray-800">
-        {icon}
-        {sidebarOpen && <span>{label}</span>}
-      </a>
+const SidebarLink = ({ icon, label, sidebarOpen, isActive = false }) => (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <a
+            href="#"
+            className={`flex items-center rounded-md px-3 py-2 transition-colors ${
+                isActive
+                    ? "bg-blue-700 text-white"
+                    : "text-blue-100 hover:text-white hover:bg-blue-700/50"
+            } ${
+                sidebarOpen ? "justify-start" : "justify-center"
+            }`}
+        >
+          <span className="flex-shrink-0">{icon}</span>
+          {sidebarOpen && <span className="ml-3">{label}</span>}
+        </a>
+      </TooltipTrigger>
       {!sidebarOpen && (
-          <motion.span
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.3 }}
-              className="absolute left-12 top-1/2 transform -translate-y-1/2 px-2 py-1 text-xs text-white bg-gray-800 rounded opacity-0 group-hover:opacity-100 transition-opacity z-50"
-          >
+          <TooltipContent side="right">
             {label}
-          </motion.span>
+          </TooltipContent>
       )}
-    </motion.div>
+    </Tooltip>
 );
 
 // Fleet Status Card Component
 const FleetStatusCard = ({ title, count, icon, color }) => (
     <motion.div
-        initial={{ opacity: 0, y: 30 }}
+        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: "easeInOut" }}
+        transition={{ duration: 0.4 }}
     >
-      <Card className="shadow-md bg-white border-l-4" style={{ borderLeftColor: color === "green" ? "#10B981" : color === "yellow" ? "#F59E0B" : "#EF4444" }}>
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="text-lg">{title}</CardTitle>
-          {icon}
-        </CardHeader>
-        <CardContent>
-          <p className="text-3xl font-bold">{count}</p>
-          <p className="text-sm text-gray-500">vehicles</p>
+      <Card className={`shadow-md hover:shadow-lg transition-shadow border-l-4 ${
+          color === "green" ? "border-l-green-500" :
+              color === "yellow" ? "border-l-yellow-500" :
+                  "border-l-red-500"
+      }`}>
+        <CardContent className="p-6">
+          <div className="flex justify-between items-start">
+            <div>
+              <h3 className="text-sm font-medium text-gray-500">{title}</h3>
+              <p className="text-3xl font-bold mt-1">{count}</p>
+              <p className="text-sm text-gray-500 mt-1">vehicles</p>
+            </div>
+            <div className={`p-3 rounded-full ${
+                color === "green" ? "bg-green-100" :
+                    color === "yellow" ? "bg-yellow-100" :
+                        "bg-red-100"
+            }`}>
+              {icon}
+            </div>
+          </div>
         </CardContent>
       </Card>
     </motion.div>
@@ -370,17 +541,25 @@ const HealthIndicator = ({ icon, label, value, color }) => (
     <div>
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center">
-          <span className="mr-2 text-gray-600">{icon}</span>
-          <span>{label}</span>
+        <span className={`mr-2 ${
+            color === "green" ? "text-green-500" :
+                color === "yellow" ? "text-yellow-500" :
+                    "text-red-500"
+        }`}>{icon}</span>
+          <span className="text-gray-700">{label}</span>
         </div>
         <span className={`font-medium ${
-            color === "green" ? "text-green-600" : color === "yellow" ? "text-yellow-600" : "text-red-600"
+            color === "green" ? "text-green-600" :
+                color === "yellow" ? "text-yellow-600" :
+                    "text-red-600"
         }`}>{value}%</span>
       </div>
-      <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
         <div
             className={`h-full rounded-full ${
-                color === "green" ? "bg-green-500" : color === "yellow" ? "bg-yellow-500" : "bg-red-500"
+                color === "green" ? "bg-green-500" :
+                    color === "yellow" ? "bg-yellow-500" :
+                        "bg-red-500"
             }`}
             style={{ width: `${value}%` }}
         ></div>

@@ -1,0 +1,674 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { auth, db } from "@/lib/firebase";
+import { onAuthStateChanged } from "firebase/auth";
+import { collection, query, where, onSnapshot, orderBy, limit } from "firebase/firestore";
+import {
+  Car,
+  LayoutDashboard,
+  Activity,
+  User,
+  BarChart2,
+  LogOut,
+  Settings,
+  ChevronRight,
+  ChevronLeft,
+  AlertTriangle,
+  Droplet,
+  Battery,
+  Map,
+  Menu,
+  Bell,
+  Calendar,
+  TrendingUp,
+  Clock,
+  AlertCircle,
+  Info,
+  Filter,
+  Download,
+  RefreshCw,
+  Maximize,
+  Zap,
+  Calendar as CalendarIcon,
+  Sliders,
+  FileText,
+  Gauge
+} from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import MapComponent from "@/app/components/MapComponent";
+
+// Enhanced dashboard with more features and better organization
+export default function Dashboard() {
+  const router = useRouter();
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+  const [activeVehicles, setActiveVehicles] = useState(18);
+  const [idleVehicles, setIdleVehicles] = useState(4);
+  const [maintenanceVehicles, setMaintenanceVehicles] = useState(2);
+  const [selectedMapTab, setSelectedMapTab] = useState('all');
+  const [userEmail, setUserEmail] = useState("");
+  const [userName, setUserName] = useState("");
+  const [notifications, setNotifications] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [selectedTimeRange, setSelectedTimeRange] = useState('today');
+  const [showFilters, setShowFilters] = useState(false);
+
+  // Enhanced mock data
+  const fleetHealthData = {
+    batteryHealth: 87,
+    engineHealth: 92,
+    tirePressure: 98,
+    fuelLevel: 76,
+    maintenanceAlerts: 3,
+    lastUpdate: new Date(Date.now() - 30 * 60000).toLocaleTimeString(),
+  };
+
+  const performanceData = {
+    fuelEfficiency: 28.5,
+    speedingIncidents: 12,
+    harshBraking: 8,
+    optimalRoutes: 83,
+    fuelSavings: 12.4,
+    co2Reduction: 8.7,
+    totalMiles: 12580,
+    avgSpeed: 38.5
+  };
+
+  const mockVehicleData = [
+    { id: "V001", name: "Delivery Van 1", driver: "John Smith", latitude: 40.7128, longitude: -74.0060, status: "active", batteryLevel: 78, lastUpdated: "10m ago" },
+    { id: "V002", name: "Truck 5", driver: "Sarah Johnson", latitude: 34.0522, longitude: -118.2437, status: "active", batteryLevel: 92, lastUpdated: "5m ago" },
+    { id: "V003", name: "Sedan 12", driver: "Mike Brown", latitude: 41.8781, longitude: -87.6298, status: "idle", batteryLevel: 45, lastUpdated: "30m ago" },
+    { id: "V004", name: "SUV 3", driver: "Emily Davis", latitude: 29.7604, longitude: -95.3698, status: "maintenance", batteryLevel: 23, lastUpdated: "1h ago" },
+    { id: "V005", name: "Pickup 7", driver: "Robert Lee", latitude: 39.9526, longitude: -75.1652, status: "active", batteryLevel: 85, lastUpdated: "2m ago" },
+    { id: "V006", name: "Van 4", driver: "Lisa Wilson", latitude: 33.4484, longitude: -112.0740, status: "idle", batteryLevel: 67, lastUpdated: "15m ago" },
+    { id: "V007", name: "Truck 2", driver: "David Miller", latitude: 32.7767, longitude: -96.7970, status: "active", batteryLevel: 72, lastUpdated: "7m ago" },
+  ];
+
+  // Recent activity data
+  const recentActivities = [
+    { id: 1, vehicle: "V001", event: "Completed delivery", time: "10 min ago", icon: <TrendingUp size={16} className="text-green-500" /> },
+    { id: 2, vehicle: "V004", event: "Maintenance alert", time: "32 min ago", icon: <AlertCircle size={16} className="text-red-500" /> },
+    { id: 3, vehicle: "V002", event: "Refueling", time: "1 hour ago", icon: <Droplet size={16} className="text-blue-500" /> },
+    { id: 4, vehicle: "V006", event: "Route changed", time: "2 hours ago", icon: <Map size={16} className="text-purple-500" /> },
+  ];
+
+  // Alert notifications
+  const mockNotifications = [
+    { id: 1, title: "Maintenance Due", message: "Vehicle V004 is due for scheduled maintenance", type: "warning", time: "2 hours ago" },
+    { id: 2, title: "Battery Low", message: "Vehicle V003 battery level below 50%", type: "alert", time: "30 min ago" },
+    { id: 3, title: "Route Optimization", message: "AI suggests better route for Vehicle V001", type: "info", time: "10 min ago" }
+  ];
+
+  // Filter vehicles based on selected tab
+  const filteredVehicles = useMemo(() => {
+    if (selectedMapTab === 'all') return mockVehicleData;
+    return mockVehicleData.filter(vehicle => vehicle.status === selectedMapTab);
+  }, [selectedMapTab, mockVehicleData]);
+
+  // Handle screen resizing for sidebar behavior
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+      if (window.innerWidth < 768) setSidebarOpen(false);
+    };
+    handleResize(); // Run on mount
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // Get user data from Firebase Auth
+  useEffect(() => {
+    setIsLoading(true);
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setUserEmail(user.email || "");
+        // Extract name from email for avatar
+        const namePart = user.email?.split('@')[0] || "";
+        setUserName(namePart.charAt(0).toUpperCase() + namePart.slice(1));
+        setIsLoading(false);
+      } else {
+        router.push("/auth/login");
+      }
+    });
+
+    // Simulate data loading
+    setTimeout(() => {
+      setNotifications(mockNotifications);
+      setIsLoading(false);
+    }, 1000);
+
+    return () => unsubscribe();
+  }, [router]);
+
+  const handleLogout = async () => {
+    try {
+      await auth.signOut();
+      router.push("/");
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
+
+  // Get user initials for avatar
+  const getInitials = () => {
+    if (!userName) return "U";
+    return userName.charAt(0).toUpperCase();
+  };
+
+  const refreshData = useCallback(() => {
+    setRefreshing(true);
+
+    // Simulate refresh with timeout
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1500);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+      setIsFullscreen(true);
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+        setIsFullscreen(false);
+      }
+    }
+  };
+
+  // Custom format for date display
+  const formattedDate = format(selectedDate, 'PPP');
+
+  // Loading state display
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="mt-4 text-gray-700">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex min-h-screen bg-gray-50 text-gray-900">
+      {/* Sidebar */}
+      <AnimatePresence>
+        <motion.aside
+          initial={{ x: -100, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          exit={{ x: -100, opacity: 0 }}
+          transition={{ duration: 0.3, ease: "easeInOut" }}
+          className={`${
+            sidebarOpen ? "w-64" : "w-20"
+          } fixed md:relative inset-y-0 left-0 bg-gradient-to-b from-blue-800 to-blue-900 text-white flex flex-col transition-all duration-300 md:block ${
+            isMobile && !sidebarOpen ? "-translate-x-full" : "translate-x-0"
+          } z-50 shadow-xl`}
+        >
+          <div className="flex items-center justify-between p-4 border-b border-blue-700">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+              className={`flex items-center transition-all ${
+                sidebarOpen ? "justify-between w-full" : "justify-center"
+              }`}
+            >
+              {sidebarOpen ? (
+                <>
+                  <div className="flex items-center">
+                    <Car className="h-6 w-6 text-blue-200" />
+                    <h1 className="ml-2 text-xl font-bold text-white">EIVMS</h1>
+                  </div>
+                  <button
+                    onClick={() => setSidebarOpen(!sidebarOpen)}
+                    className="text-blue-200 hover:text-white transition-colors"
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Car className="h-6 w-6 text-blue-200" />
+                  <button
+                    onClick={() => setSidebarOpen(!sidebarOpen)}
+                    className="absolute right-0 mr-4 text-blue-200 hover:text-white transition-colors"
+                  >
+                    <ChevronRight size={20} />
+                  </button>
+                </>
+              )}
+            </motion.div>
+          </div>
+
+          {/* User Profile Info */}
+          <div className={`border-b border-blue-700 p-4 ${sidebarOpen ? "text-left" : "text-center"}`}>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                  <div className={`${sidebarOpen ? "flex items-center" : "flex flex-col items-center"}`}>
+                    <Avatar className="h-10 w-10 bg-blue-600 text-white">
+                      <AvatarImage src="/api/placeholder/40/40" alt={userName} />
+                      <AvatarFallback>{getInitials()}</AvatarFallback>
+                    </Avatar>
+                    {sidebarOpen && (
+                      <div className="ml-3 overflow-hidden">
+                        <p className="font-medium truncate">{userName || "User"}</p>
+                        <p className="text-xs text-blue-200 truncate">{userEmail}</p>
+                      </div>
+                    )}
+                  </div>
+                </TooltipTrigger>
+                {!sidebarOpen && (
+                  <TooltipContent side="right">
+                    <p className="font-medium">{userName || "User"}</p>
+                    <p className="text-xs">{userEmail}</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+
+          {/* Navigation Menu */}
+          <nav className="flex-1 overflow-y-auto p-2 space-y-1">
+            <TooltipProvider>
+              <SidebarLink
+                icon={<LayoutDashboard size={20} />}
+                label="Dashboard"
+                isActive={true}
+                sidebarOpen={sidebarOpen}
+              />
+              <SidebarLink
+                icon={<Activity size={20} />}
+                label="Fleet Health"
+                sidebarOpen={sidebarOpen}
+              />
+              <SidebarLink
+                icon={<Car size={20} />}
+                label="Vehicles"
+                sidebarOpen={sidebarOpen}
+              />
+              <SidebarLink
+                icon={<Map size={20} />}
+                label="Live Tracking"
+                sidebarOpen={sidebarOpen}
+              />
+              <SidebarLink
+                icon={<Gauge size={20} />}
+                label="Diagnostics"
+                sidebarOpen={sidebarOpen}
+              />
+              <SidebarLink
+                icon={<BarChart2 size={20} />}
+                label="Analytics"
+                sidebarOpen={sidebarOpen}
+              />
+              <SidebarLink
+                icon={<Calendar size={20} />}
+                label="Schedule"
+                sidebarOpen={sidebarOpen}
+              />
+              <SidebarLink
+                icon={<FileText size={20} />}
+                label="Reports"
+                sidebarOpen={sidebarOpen}
+              />
+              <SidebarLink
+                icon={<User size={20} />}
+                label="Profile"
+                sidebarOpen={sidebarOpen}
+              />
+              <SidebarLink
+                icon={<Settings size={20} />}
+                label="Settings"
+                sidebarOpen={sidebarOpen}
+              />
+            </TooltipProvider>
+          </nav>
+
+          <div className="p-4 border-t border-blue-700">
+            <Button
+              onClick={handleLogout}
+              variant="ghost"
+              className={`${
+                sidebarOpen ? "w-full justify-start" : "w-full justify-center"
+              } text-red-100 hover:text-white hover:bg-red-700 transition-colors`}
+            >
+              <LogOut size={20} className={sidebarOpen ? "mr-2" : ""} />
+              {sidebarOpen && "Logout"}
+            </Button>
+          </div>
+        </motion.aside>
+      </AnimatePresence>
+
+      {/* Main Content */}
+      <div className={`flex-1 flex flex-col transition-all ${
+        sidebarOpen ? "md:ml-64" : "md:ml-20"
+      } ${isMobile ? "ml-0" : ""}`}>
+        {/* Top Bar */}
+        <header className="sticky top-0 z-40 bg-white border-b px-6 py-3 flex justify-between items-center">
+          <div className="flex items-center">
+            {isMobile && (
+              <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)} className="mr-4">
+                <Menu size={20} />
+              </Button>
+            )}
+            <h2 className="text-xl font-semibold text-blue-900">Fleet Dashboard</h2>
+          </div>
+          <div className="flex items-center space-x-2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" onClick={refreshData} className="relative">
+                    <RefreshCw size={18} className={refreshing ? "animate-spin" : ""} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Refresh data</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" onClick={toggleFullscreen} className="relative">
+                    <Maximize size={18} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Toggle fullscreen</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="icon" className="relative">
+                  <Bell size={18} />
+                  {notifications.length > 0 && (
+                    <Badge variant="destructive" className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center p-0 text-xs">
+                      {notifications.length}
+                    </Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 p-0">
+                <div className="p-3 border-b">
+                  <h3 className="font-medium">Notifications</h3>
+                </div>
+                <div className="max-h-64 overflow-y-auto">
+                  {notifications.map(notification => (
+                    <div key={notification.id} className="p-3 border-b hover:bg-gray-50 cursor-pointer">
+                      <div className="flex items-start">
+                        <div className={`rounded-full p-2 mr-3 ${
+                          notification.type === 'warning' ? 'bg-yellow-100 text-yellow-500' :
+                          notification.type === 'alert' ? 'bg-red-100 text-red-500' :
+                          'bg-blue-100 text-blue-500'
+                        }`}>
+                          {notification.type === 'warning' ? <AlertTriangle size={16} /> :
+                           notification.type === 'alert' ? <AlertCircle size={16} /> :
+                           <Info size={16} />}
+                        </div>
+                        <div>
+                          <h4 className="font-medium text-sm">{notification.title}</h4>
+                          <p className="text-sm text-gray-600">{notification.message}</p>
+                          <p className="text-xs text-gray-400 mt-1">{notification.time}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="p-2 border-t text-center">
+                  <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-800 text-sm">
+                    View all notifications
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            <Button className="bg-blue-600 hover:bg-blue-700 text-white hidden md:flex">
+              <Zap size={16} className="mr-2" />
+              Upgrade to Pro
+            </Button>
+          </div>
+        </header>
+
+        {/* Page Content */}
+        <div className="flex-1 overflow-y-auto">
+          {/* Date, Welcome, and Controls */}
+          <div className="bg-gradient-to-r from-blue-800 to-blue-700 text-white p-6">
+            <div className="flex flex-col md:flex-row md:justify-between md:items-center">
+              <div>
+                <p className="text-blue-200">{formattedDate}</p>
+                <h1 className="text-2xl font-bold mt-1">Welcome back, {userName}</h1>
+                <p className="text-blue-100 mt-1">Here's what's happening with your fleet today</p>
+              </div>
+              <div className="mt-4 md:mt-0 flex items-center space-x-3">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="bg-blue-700 border-blue-600 text-white hover:bg-blue-600">
+                      <CalendarIcon size={16} className="mr-2" />
+                      {format(selectedDate, 'PPP')}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <CalendarComponent
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={setSelectedDate}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                <Button variant="outline" className="bg-blue-700 border-blue-600 text-white hover:bg-blue-600">
+                  <Filter size={16} className="mr-2" />
+                  Filters
+                </Button>
+                <Button variant="outline" className="bg-blue-700 border-blue-600 text-white hover:bg-blue-600">
+                  <Download size={16} className="mr-2" />
+                  Export
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Summary Cards */}
+          <div className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <FleetStatusCard
+                title="Active Vehicles"
+                count={activeVehicles}
+                icon={<Car className="text-green-500" size={28} />}
+                color="green"
+                trend="+2 from yesterday"
+                trendUp={true}
+              />
+              <FleetStatusCard
+                title="Idle Vehicles"
+                count={idleVehicles}
+                icon={<Car className="text-yellow-500" size={28} />}
+                color="yellow"
+                trend="-1 from yesterday"
+                trendUp={false}
+              />
+              <FleetStatusCard
+                title="In Maintenance"
+                count={maintenanceVehicles}
+                icon={<Car className="text-red-500" size={28} />}
+                color="red"
+                trend="No change"
+                trendUp={null}
+              />
+            </div>
+          </div>
+
+          {/* Live Vehicle Tracking */}
+          <div className="px-6 pb-6">
+            <Card className="overflow-hidden shadow-md">
+              <CardHeader className="bg-white py-4 px-6 flex flex-row items-center justify-between">
+                <CardTitle className="text-lg font-semibold text-blue-900">Real-Time Fleet Tracking</CardTitle>
+                <div className="flex space-x-2">
+                  <Button
+                    variant={selectedMapTab === 'all' ? "default" : "outline"}
+                    onClick={() => setSelectedMapTab('all')}
+                    className="text-sm h-8"
+                  >
+                    All
+                  </Button>
+                  <Button
+                    variant={selectedMapTab === 'active' ? "default" : "outline"}
+                    onClick={() => setSelectedMapTab('active')}
+                    className="text-sm h-8"
+                  >
+                    Active
+                  </Button>
+                  <Button
+                    variant={selectedMapTab === 'idle' ? "default" : "outline"}
+                    onClick={() => setSelectedMapTab('idle')}
+                    className="text-sm h-8"
+                  >
+                    Idle
+                  </Button>
+                  <Button
+                    variant={selectedMapTab === 'maintenance' ? "default" : "outline"}
+                    onClick={() => setSelectedMapTab('maintenance')}
+                    className="text-sm h-8"
+                  >
+                    Maintenance
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                {/* Map Component */}
+                <div className="relative w-full h-96 bg-gray-200">
+                  <MapComponent vehicleLocations={filteredVehicles} />
+
+                  {/* Map Controls */}
+                  <div className="absolute top-4 right-4 bg-white p-2 rounded-md shadow-md">
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <Sliders size={16} />
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Legend */}
+                <div className="flex items-center justify-center space-x-6 p-3 bg-white border-t">
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
+                    <span className="text-sm">Active</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 rounded-full bg-yellow-500 mr-2"></div>
+                    <span className="text-sm">Idle</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 rounded-full bg-red-500 mr-2"></div>
+                    <span className="text-sm">Maintenance</span>
+                  </div>
+                </div>
+              </CardContent>
+              <CardFooter className="bg-gray-50 p-4 border-t">
+                <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {filteredVehicles.slice(0, 3).map(vehicle => (
+                    <Card key={vehicle.id} className="shadow-sm">
+                      <CardContent className="p-3">
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <h4 className="font-medium text-sm">{vehicle.name}</h4>
+                            <p className="text-xs text-gray-500">Driver: {vehicle.driver}</p>
+                          </div>
+                          <Badge
+                            className={`${
+                              vehicle.status === 'active' ? 'bg-green-100 text-green-800' :
+                              vehicle.status === 'idle' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-red-100 text-red-800'
+                            }`}
+                          >
+                            {vehicle.status}
+                          </Badge>
+                        </div>
+                        <div className="mt-2">
+                          <div className="flex items-center justify-between text-xs">
+                            <span>Battery</span>
+                            <span className="font-medium">{vehicle.batteryLevel}%</span>
+                          </div>
+                          <Progress value={vehicle.batteryLevel} className="h-1 mt-1" />
+                        </div>
+                        <div className="mt-2 flex justify-between text-xs text-gray-500">
+                          <span>Last updated: {vehicle.lastUpdated}</span>
+                          <Button variant="link" size="sm" className="h-auto p-0 text-blue-600">
+                            Details
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </CardFooter>
+            </Card>
+          </div>
+
+          {/* Analytics and Activity Section */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 px-6 pb-6">
+            {/* Fleet Health and Performance */}
+            <div className="col-span-2">
+              <Tabs defaultValue="health" className="w-full">
+                <TabsList className="grid grid-cols-2 w-full">
+                  <TabsTrigger value="health">Fleet Health</TabsTrigger>
+                  <TabsTrigger value="performance">Performance</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="health" className="mt-4">
+                  <Card className="shadow-md">
+                    <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                      <CardTitle className="text-lg font-semibold text-blue-900">Fleet Health</CardTitle>
+                      <div className="flex items-center text-xs text-gray-500">
+                        <Clock size={14} className="mr-1" />
+                        Last updated: {fleetHealthData.lastUpdate}
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <HealthIndicator
+                        icon={<Battery size={18} />}
+                        label="Battery Health"
+                        value={fleetHealthData.batteryHealth}
+                        color={fleetHealthData.batteryHealth > 90 ? "green" : fleetHealthData.batteryHealth > 70 ? "yellow" : "red"}
+                      />
+                      <HealthIndicator
+                        icon={<Activity size={18} />}
+                        label="Engine Health"
+                        value={fleetHealthData.engineHealth}
+                        color={fleetHealthData.engineHealth > 90 ? "green" : fleetHealthData.engineHealth > 70 ? "yellow" : "red"}
+                      />
+                      <HealthIndicator
+                        icon={<Droplet size={18} />}
+                        label="Tire Pressure"
+                        value={fleetHealthData.tirePressure}
+                        color={fleetHealthData.tirePressure > 90 ? "green" : fleetHealthData.tirePressure > 70 ? "yellow" : "red"}
+                      />
+
+                      <div className="pt-4 border-t">
+                        <h4 className="font-medium mb-2 flex items-center">
+                          <AlertTriangle className="text-red-500 mr-2" size={18} />
+                          Maintenance Alerts
+                        </h4>
+                        <div className="bg-red-50 p-3 rounded-md">
+                          <p className="text-red-700 font-medium">3 vehicles require attention</p>
+                          <ul className="list-disc pl-5 mt-1 text
