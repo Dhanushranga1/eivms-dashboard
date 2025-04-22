@@ -28,6 +28,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import MapComponent from "@/app/components/MapComponent";
+import VehicleTelemetryComponent from "@/components/VehicleTelemetryComponent";
+
 
 export default function Dashboard() {
   const router = useRouter();
@@ -40,7 +42,7 @@ export default function Dashboard() {
   const [userEmail, setUserEmail] = useState("");
   const [userName, setUserName] = useState("");
   const [notifications, setNotifications] = useState(3);
-
+  const USE_API = false;
   // Mock data for fleet health and performance
   const fleetHealthData = {
     batteryHealth: 87,
@@ -72,6 +74,7 @@ export default function Dashboard() {
     if (selectedMapTab === 'all') return mockVehicleData;
     return mockVehicleData.filter(vehicle => vehicle.status === selectedMapTab);
   }, [selectedMapTab, mockVehicleData]);
+
 
   // Handle screen resizing for sidebar behavior
   useEffect(() => {
@@ -315,6 +318,9 @@ export default function Dashboard() {
                 />
               </div>
             </div>
+            <div className="px-6 pb-6">
+              <VehicleTelemetryComponent/>
+              </div>
 
             {/* Live Vehicle Tracking */}
             <div className="px-6 pb-6">
