@@ -194,47 +194,37 @@ export default function Dashboard() {
             </TooltipProvider>
           </div>
 
-          {/* Navigation Menu */}
-          <nav className="flex-1 overflow-y-auto p-2 space-y-1">
-            <TooltipProvider>
-              <SidebarLink
-                  icon={<LayoutDashboard size={20} />}
-                  label="Dashboard"
-                  isActive={true}
-                  sidebarOpen={sidebarOpen}
-              />
-              <SidebarLink
-                  icon={<Activity size={20} />}
-                  label="Fleet Health"
-                  sidebarOpen={sidebarOpen}
-              />
-              <SidebarLink
-                  icon={<Car size={20} />}
-                  label="Vehicles"
-                  sidebarOpen={sidebarOpen}
-              />
-              <SidebarLink
-                  icon={<Map size={20} />}
-                  label="Live Tracking"
-                  sidebarOpen={sidebarOpen}
-              />
-              <SidebarLink
-                  icon={<BarChart2 size={20} />}
-                  label="Analytics"
-                  sidebarOpen={sidebarOpen}
-              />
-              <SidebarLink
-                  icon={<User size={20} />}
-                  label="Profile"
-                  sidebarOpen={sidebarOpen}
-              />
-              <SidebarLink
-                  icon={<Settings size={20} />}
-                  label="Settings"
-                  sidebarOpen={sidebarOpen}
-              />
-            </TooltipProvider>
-          </nav>
+{/* Navigation Menu */}
+<nav className="flex-1 overflow-y-auto p-2 space-y-1">
+  <TooltipProvider>
+    <SidebarLink
+      icon={<LayoutDashboard size={20} />}
+      label="Dashboard"
+      isActive={true}
+      sidebarOpen={sidebarOpen}
+      href="/dashboard"
+    />
+    <SidebarLink
+      icon={<Activity size={20} />}
+      label="Fleet Health"
+      sidebarOpen={sidebarOpen}
+      href="/fleethealth"
+    />
+    <SidebarLink
+      icon={<Car size={20} />}
+      label="Vehicles"
+      sidebarOpen={sidebarOpen}
+      href="/vehicles"
+    />
+    <SidebarLink
+      icon={<User size={20} />}
+      label="Profile"
+      sidebarOpen={sidebarOpen}
+      href="/profile"
+    />
+  </TooltipProvider>
+</nav>
+
 
           <div className="p-4 border-t border-blue-700">
             <Button
@@ -485,29 +475,30 @@ export default function Dashboard() {
 }
 
 // Sidebar Link Component with Tooltip Support and Hover Effect
-const SidebarLink = ({ icon, label, sidebarOpen, isActive = false }) => (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <a
-            href="#"
-            className={`flex items-center rounded-md px-3 py-2 transition-colors ${
-                isActive
-                    ? "bg-blue-700 text-white"
-                    : "text-blue-100 hover:text-white hover:bg-blue-700/50"
-            } ${
-                sidebarOpen ? "justify-start" : "justify-center"
-            }`}
-        >
-          <span className="flex-shrink-0">{icon}</span>
-          {sidebarOpen && <span className="ml-3">{label}</span>}
-        </a>
-      </TooltipTrigger>
-      {!sidebarOpen && (
-          <TooltipContent side="right">
-            {label}
-          </TooltipContent>
-      )}
-    </Tooltip>
+// Sidebar Link Component with Tooltip Support and Hover Effect
+const SidebarLink = ({ icon, label, sidebarOpen, isActive = false, href }) => (
+  <Tooltip>
+    <TooltipTrigger asChild>
+      <a
+          href={href}
+          className={`flex items-center rounded-md px-3 py-2 transition-colors ${
+              isActive
+                  ? "bg-blue-700 text-white"
+                  : "text-blue-100 hover:text-white hover:bg-blue-700/50"
+          } ${
+              sidebarOpen ? "justify-start" : "justify-center"
+          }`}
+      >
+        <span className="flex-shrink-0">{icon}</span>
+        {sidebarOpen && <span className="ml-3">{label}</span>}
+      </a>
+    </TooltipTrigger>
+    {!sidebarOpen && (
+        <TooltipContent side="right">
+          {label}
+        </TooltipContent>
+    )}
+  </Tooltip>
 );
 
 // Fleet Status Card Component

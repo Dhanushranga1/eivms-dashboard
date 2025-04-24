@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,10 +22,12 @@ import {
     FiEdit,
     FiTrash2
 } from "react-icons/fi";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import MapComponent from "@/app/components/MapComponent";
 
 export default function VehiclesPage() {
     const router = useRouter();
+    const pathname = usePathname();
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [isMobile, setIsMobile] = useState(false);
     const [selectedMapTab, setSelectedMapTab] = useState('all');
@@ -57,51 +59,130 @@ export default function VehiclesPage() {
     };
 
     return (
-        <div className="flex min-h-screen bg-gray-100 text-gray-900">
-            {/* Sidebar */}
+        <div className="flex min-h-screen bg-gray-50 text-gray-900">
+            {/* Sidebar - Updated to match Dashboard */}
             <motion.aside
                 initial={{ x: -100, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ duration: 0.5, ease: "easeInOut" }}
-                className={`${sidebarOpen ? "w-64" : "w-20"} fixed md:relative inset-y-0 left-0 bg-[#1E1E1E] text-white p-5 flex flex-col transition-all duration-300 md:block ${isMobile && !sidebarOpen ? "-translate-x-full" : "translate-x-0"} z-50`}
+                className={`${
+                    sidebarOpen ? "w-64" : "w-20"
+                } fixed md:relative inset-y-0 left-0 bg-gradient-to-b from-blue-800 to-blue-900 text-white flex flex-col transition-all duration-300 md:block ${
+                    isMobile && !sidebarOpen ? "-translate-x-full" : "translate-x-0"
+                } z-50 shadow-xl`}
             >
-                <div className="flex items-center justify-between">
-                    <motion.h1
+                <div className="flex items-center justify-between p-4 border-b border-blue-700">
+                    <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ duration: 0.5, delay: 0.3 }}
-                        className={`text-xl font-semibold tracking-wide transition-all ${sidebarOpen ? "block" : "hidden"}`}
+                        className={`flex items-center transition-all ${
+                            sidebarOpen ? "justify-between w-full" : "justify-center"
+                        }`}
                     >
-                        AUTOWISE
-                    </motion.h1>
-                    <motion.button whileHover={{ scale: 1.1 }} onClick={() => setSidebarOpen(!sidebarOpen)} className="text-white">
-                        <FiMenu size={24} />
-                    </motion.button>
+                        {sidebarOpen ? (
+                            <>
+                                <div className="flex items-center">
+                                    <FiTruck className="h-6 w-6 text-blue-200" />
+                                    <h1 className="ml-2 text-xl font-bold text-white">EIVMS</h1>
+                                </div>
+                                <button
+                                    onClick={() => setSidebarOpen(!sidebarOpen)}
+                                    className="text-blue-200 hover:text-white transition-colors"
+                                >
+                                    <FiMenu size={20} />
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                <FiTruck className="h-6 w-6 text-blue-200" />
+                                <button
+                                    onClick={() => setSidebarOpen(!sidebarOpen)}
+                                    className="absolute right-0 mr-4 text-blue-200 hover:text-white transition-colors"
+                                >
+                                    <FiMenu size={20} />
+                                </button>
+                            </>
+                        )}
+                    </motion.div>
                 </div>
 
-                <nav className="mt-8 space-y-4">
-                    <SidebarLink icon={<FiHome />} label="Home" sidebarOpen={sidebarOpen} />
-                    <SidebarLink icon={<FiBarChart2 />} label="Analytics" sidebarOpen={sidebarOpen} />
-                    <SidebarLink icon={<FiMap />} label="Live Tracking" sidebarOpen={sidebarOpen} />
-                    <SidebarLink icon={<FiTruck />} label="Fleet Management" sidebarOpen={sidebarOpen} />
-                    <SidebarLink icon={<FiActivity />} label="Performance" sidebarOpen={sidebarOpen} />
-                    <SidebarLink icon={<FiUser />} label="Profile" sidebarOpen={sidebarOpen} />
-                    <SidebarLink icon={<FiSettings />} label="Settings" sidebarOpen={sidebarOpen} />
+                {/* User Profile Info - Placeholder for consistency */}
+                <div className={`border-b border-blue-700 p-4 ${sidebarOpen ? "text-left" : "text-center"}`}>
+                    <div className={`${sidebarOpen ? "flex items-center" : "flex flex-col items-center"}`}>
+                        <div className="h-10 w-10 rounded-full bg-blue-600 flex items-center justify-center text-white">
+                            <FiUser size={20} />
+                        </div>
+                        {sidebarOpen && (
+                            <div className="ml-3 overflow-hidden">
+                                <p className="font-medium truncate">Admin User</p>
+                                <p className="text-xs text-blue-200 truncate">admin@example.com</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Navigation Menu - Updated to match Dashboard */}
+                <nav className="flex-1 overflow-y-auto p-2 space-y-1">
+                    <TooltipProvider>
+                        <SidebarLink
+                            icon={<FiHome size={20} />}
+                            label="Dashboard"
+                            isActive={pathname === "/dashboard"}
+                            sidebarOpen={sidebarOpen}
+                            href="/dashboard"
+                        />
+                        <SidebarLink
+                            icon={<FiActivity size={20} />}
+                            label="Fleet Health"
+                            isActive={pathname === "/fleethealth"}
+                            sidebarOpen={sidebarOpen}
+                            href="/fleethealth"
+                        />
+                        <SidebarLink
+                            icon={<FiTruck size={20} />}
+                            label="Vehicles"
+                            isActive={pathname === "/vehicles"}
+                            sidebarOpen={sidebarOpen}
+                            href="/vehicles"
+                        />
+                        <SidebarLink
+                            icon={<FiUser size={20} />}
+                            label="Profile"
+                            isActive={pathname === "/profile"}
+                            sidebarOpen={sidebarOpen}
+                            href="/profile"
+                        />
+                    </TooltipProvider>
                 </nav>
 
-                <motion.div whileHover={{ scale: 1.05 }} className="mt-auto">
-                    <Button onClick={handleLogout} className="flex items-center gap-2 w-full text-white bg-red-600 hover:bg-red-700">
-                        <FiLogOut /> {sidebarOpen && "Logout"}
+                <div className="p-4 border-t border-blue-700">
+                    <Button
+                        onClick={handleLogout}
+                        variant="ghost"
+                        className={`${
+                            sidebarOpen ? "w-full justify-start" : "w-full justify-center"
+                        } text-red-100 hover:text-white hover:bg-red-700 transition-colors`}
+                    >
+                        <FiLogOut size={20} className="mr-2" />
+                        {sidebarOpen && "Logout"}
                     </Button>
-                </motion.div>
+                </div>
             </motion.aside>
 
             {/* Main Content */}
             <div className={`flex-1 flex flex-col transition-all ${sidebarOpen ? "md:ml-64" : "md:ml-20"} ${isMobile ? "ml-0" : ""}`}>
-                <header className="p-5 bg-white shadow flex justify-between items-center">
-                    <h2 className="text-2xl font-semibold text-gray-800">Fleet Management</h2>
-                    <Button className="bg-green-600 text-white flex items-center gap-2">
-                        <FiPlus />
+                <header className="sticky top-0 z-40 bg-white border-b px-6 py-3 flex justify-between items-center">
+                    <div className="flex items-center">
+                        {isMobile && (
+                            <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)} className="mr-4">
+                                <FiMenu size={20} />
+                            </Button>
+                        )}
+                        <h2 className="text-xl font-semibold text-blue-900">Fleet Management</h2>
+                    </div>
+                    <Button className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2">
+                        <FiPlus size={16} />
                         Add Vehicle
                     </Button>
                 </header>
@@ -125,9 +206,13 @@ export default function VehiclesPage() {
                                 <tr key={vehicle.id} className="border-b hover:bg-gray-50">
                                     <td className="p-3">{vehicle.id}</td>
                                     <td className="p-3">
-                      <span className={`px-2 py-1 rounded-md text-sm font-medium ${vehicle.status === "active" ? "bg-green-100 text-green-600" : vehicle.status === "idle" ? "bg-yellow-100 text-yellow-600" : "bg-red-100 text-red-600"}`}>
-                        {vehicle.status}
-                      </span>
+                                      <span className={`px-2 py-1 rounded-md text-sm font-medium ${
+                                          vehicle.status === "active" ? "bg-green-100 text-green-600" : 
+                                          vehicle.status === "idle" ? "bg-yellow-100 text-yellow-600" : 
+                                          "bg-red-100 text-red-600"
+                                      }`}>
+                                        {vehicle.status}
+                                      </span>
                                     </td>
                                     <td className="p-3">{vehicle.driver}</td>
                                     <td className="p-3">{vehicle.lastService}</td>
@@ -156,10 +241,28 @@ export default function VehiclesPage() {
     );
 }
 
-// Sidebar Link Component
-const SidebarLink = ({ icon, label, sidebarOpen }) => (
-    <motion.div whileHover={{ scale: 1.1, backgroundColor: "rgba(255, 255, 255, 0.1)" }} className="relative group rounded-md transition-all">
-        <a href="#" className="flex items-center gap-4 p-3 rounded-md transition-all hover:bg-gray-800">{icon} {sidebarOpen && <span>{label}</span>}</a>
-    </motion.div>
+// Sidebar Link Component with Tooltip Support and Hover Effect - Matches Dashboard
+const SidebarLink = ({ icon, label, sidebarOpen, isActive = false, href }) => (
+    <Tooltip>
+        <TooltipTrigger asChild>
+            <a
+                href={href}
+                className={`flex items-center rounded-md px-3 py-2 transition-colors ${
+                    isActive
+                        ? "bg-blue-700 text-white"
+                        : "text-blue-100 hover:text-white hover:bg-blue-700/50"
+                } ${
+                    sidebarOpen ? "justify-start" : "justify-center"
+                }`}
+            >
+                <span className="flex-shrink-0">{icon}</span>
+                {sidebarOpen && <span className="ml-3">{label}</span>}
+            </a>
+        </TooltipTrigger>
+        {!sidebarOpen && (
+            <TooltipContent side="right">
+                {label}
+            </TooltipContent>
+        )}
+    </Tooltip>
 );
-
